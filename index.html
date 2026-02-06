@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EU Housing Map</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+        }
+
+        svg path {
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        svg path:hover {
+            stroke: black;
+            stroke-width: 1.5px;
+        }
+        #tooltip {
+            position: absolute;
+            background: white;
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 14px;
+            display: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #map-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 220px; /* space for legend */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+        }
+
+        #map-container svg {
+            width: 100%;
+            height: auto;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+
+
+        #legend {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: white;
+            padding: 12px 16px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        #legend h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .legend-item .box {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            border: 1px solid #999;
+        }
+
+        /* Match your map colors */
+        .c1 { background: #e6eecf; }
+        .c2 { background: #9bc4c1; }
+        .c3 { background: #69a8b7; }
+        .c4 { background: #4b7e98; }
+        .c5 { background: #2e557a; }
+
+        .map-buttons {
+            position: absolute;
+            right:380px;
+            top: 50px; /* adjust depending on legend height */
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 3000;
+        }
+
+        .map-buttons button {
+            padding: 10px;
+            background: #005bbb;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .map-buttons button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            color: white !important;
+        }
+
+        /* Housing = BLUE */
+        .map-buttons .housing-btn {
+            background-color: #2563eb !important;
+        }
+
+        /* Immigration = RED */
+        .map-buttons .immigration-btn {
+            background-color: #C51B8A !important;
+        }
+
+        #site-title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 3000;
+            font-size: 26px;
+            font-weight: 700;
+            margin: 0;
+            padding: 0;
+            background: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        #map-explanation {
+            position: absolute;
+            right: 20px;
+            top: 260px; /* adjust depending on legend height */
+            width: 220px;
+            font-size: 14px;
+            line-height: 1.4;
+            background: white;
+            padding: 10px 12px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        #source-button {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 3000;
+            padding: 8px 14px;
+            background: #005bbb;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        #source-button:hover {
+            background: #004999;
+        }
+
+        #toggle-group {
+            position: absolute;
+            top: 70px;
+            left: 20px;
+            z-index: 3000;
+            padding: 8px 14px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        #toggle-group:hover {
+            background: #7A0177;
+        }
+
+        #toggle-group {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            color: white;
+            margin-bottom: 12px;
+        }
+
+        .toggle-housing {
+            background-color: #C51B8A;
+        }
+
+        .toggle-immigration {
+            background-color: #2563eb;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<h1 id="site-title">Housing Affordability and Immigration in Europe</h1>
+<button id="toggle-group">Immigration Maps</button>
+
+<div id="map-container"></div>
+
+<div id="tooltip"></div>
+
+<div id="legend">
+    <h3 id="legend-title">Share of disposable income used on Housing</h3>
+    <div class="legend-item"><span class="box c1"></span> 0% - 10%</div>
+    <div class="legend-item"><span class="box c2"></span> 10% - 15%</div>
+    <div class="legend-item"><span class="box c3"></span> 15% - 20%</div>
+    <div class="legend-item"><span class="box c4"></span> 20% - 25%</div>
+    <div class="legend-item"><span class="box c5"></span> 25% +</div>
+</div>
+
+<div id="map-explanation"></div>
+
+<div class="map-buttons"></div>
+
+<script>
+    
+
+    
+function showMap(n) {
+        if (n === 1) {
+            document.getElementById("legend-title").textContent = "Disposable income used on Housing";
+            document.getElementById("map-explanation").textContent =
+                "This map shows how much of their disposable income households in each European country spend on housing costs. Higher percentages indicate greater housing cost pressure.";
+
+            loadScriptSequential("dataMAP1.js", () => {
+                loadScriptSequential("map1.js", () => {
+                    loadMap("HousingCostinEU.svg");
+                });
+            });
+        }
+
+        if (n === 2) {
+            document.getElementById("legend-title").textContent = "30/40 Stress when employed";
+            document.getElementById("map-explanation").textContent =
+                "This map highlights the share of households below 60% of median income who spend more than 30% of their income on housing.";
+
+            loadScriptSequential("dataMAP2.js", () => {
+                loadScriptSequential("map2.js", () => {
+                    loadMap("30-40_employed.svg");
+                });
+            });
+        }
+
+        if (n === 3) {
+            document.getElementById("legend-title").textContent = "30/40 Stress when student";
+            document.getElementById("map-explanation").textContent =
+                "This map focuses on young adults facing housing stress under the 30/40 rule.";
+
+            loadScriptSequential("dataMAP3.js", () => {
+                loadScriptSequential("map3.js", () => {
+                    loadMap("30-40_youth.svg");
+                });
+            });
+        }
+}
+
+function updateLegend(items) {
+    const legend = document.getElementById("legend");
+
+    legend.innerHTML = `
+        <h3 id="legend-title">${items.title}</h3>
+        ${items.ranges.map(r => `
+            <div class="legend-item">
+                <span class="box" style="background:${r.color}"></span> ${r.label}
+            </div>
+        `).join("")}
+    `;
+}
+
+const housingLegendHTML = `
+    <h3 id="legend-title">Share of disposable income used on Housing</h3>
+    <div class="legend-item"><span class="box c1"></span> 0% - 10%</div>
+    <div class="legend-item"><span class="box c2"></span> 10% - 15%</div>
+    <div class="legend-item"><span class="box c3"></span> 15% - 20%</div>
+    <div class="legend-item"><span class="box c4"></span> 20% - 25%</div>
+    <div class="legend-item"><span class="box c5"></span> 25% +</div>
+`;
+
+document.addEventListener("DOMContentLoaded", () => {
+
+
+
+    let currentMode = "housing";
+    const housingSource = "https://www.eurofound.europa.eu/en/surveys-and-data/data-catalogue/housing-dashboard";
+    const immigrationSource = "https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Migration_and_migrant_population_statistics";
+
+    const sourceBtn = document.getElementById("source-button");
+    sourceBtn.onclick = () => window.open(housingSource, "_blank");
+
+    document.getElementById("toggle-group").addEventListener("click", () => {
+        if (currentMode === "housing") switchToImmigration();
+        else switchToHousing();
+    });
+
+    function switchToHousing() {
+    currentMode = "housing";
+
+    const toggle = document.getElementById("toggle-group");
+    toggle.classList.remove("toggle-immigration");
+    toggle.classList.add("toggle-housing");
+
+    sourceBtn.onclick = () => window.open(housingSource, "_blank");
+
+    document.getElementById("legend").innerHTML = housingLegendHTML;
+
+    document.querySelector(".map-buttons").innerHTML = `
+        <button class="housing-btn" onclick="showMap(1)">Housing Cost Overburden</button>
+        <button class="housing-btn" onclick="showMap(2)">30/40 Stress (General)</button>
+        <button class="housing-btn" onclick="showMap(3)">30/40 Stress (Youth)</button>
+    `;
+
+    showMap(1);
+}
+
+
+
+
+    function switchToImmigration() {
+    currentMode = "immigration";
+
+    const toggle = document.getElementById("toggle-group");
+    toggle.textContent = "Housing Maps";
+    toggle.classList.remove("toggle-housing");
+    toggle.classList.add("toggle-immigration");
+
+    sourceBtn.onclick = () => window.open(immigrationSource, "_blank");
+
+    document.getElementById("legend-title").textContent = "Immigration Indicators";
+
+    document.querySelector(".map-buttons").innerHTML = `
+        <button class="immigration-btn" onclick="showImmigrationMap(4)">Total Immigrants</button>
+        <button class="immigration-btn" onclick="showImmigrationMap(5)">From EU (thousand)</button>
+        <button class="immigration-btn" onclick="showImmigrationMap(6)">From non-EU (%)</button>
+    `;
+
+    showImmigrationMap(4);
+}
+
+
+
+    document.querySelector(".map-buttons").innerHTML = `
+            <button class="housing-btn" onclick="showMap(1)">Housing Cost Overburden</button>
+            <button class="housing-btn" onclick="showMap(2)">30/40 Stress (General)</button>
+            <button class="housing-btn" onclick="showMap(3)">30/40 Stress (Youth)</button>
+        `;
+
+
+
+    showMap(1);
+        document.getElementById("toggle-group").classList.add("toggle-housing");
+
+});
+
+const immigrationLegends = {
+    4: {
+        title: "Total Immigrants (thousand)",
+        ranges: [
+            { label: "0 – 50k", color: "#fde0dd" },
+            { label: "50k – 120k", color: "#fa9fb5" },
+            { label: "120k – 300k", color: "#f768a1" },
+            { label: "300k – 1200k", color: "#c51b51" },
+            { label: "1200k+", color: "#7a0128" }
+        ]
+    },
+    5: {
+        title: "Immigrants from EU (thousand)",
+        ranges: [
+            { label: "0 – 15k", color: "#fde0dd" },
+            { label: "15k – 40k", color: "#fa9fb5" },
+            { label: "40k – 80k", color: "#f768a1" },
+            { label: "80k – 200k", color: "#c51b51" },
+            { label: "200k+", color: "#7a0128" }
+        ]
+    },
+    6: {
+        title: "Immigrants from non‑EU (%)",
+        ranges: [
+            { label: "0% – 30%", color: "#fde0dd" },
+            { label: "30% – 55%", color: "#fa9fb5" },
+            { label: "55% – 70%", color: "#f768a1" },
+            { label: "70% – 80%", color: "#c51b51" },
+            { label: "80% - 100%", color: "#7a0128" }
+        ]
+    }
+};
+
+function showImmigrationMap(n) {
+
+    updateLegend(immigrationLegends[n]);
+
+    if (n === 4) {
+        document.getElementById("map-explanation").textContent =
+            "This map shows the total number of immigrants entering each country in 2023.";
+
+        loadScriptSequential("dataMAP4.js", () => {
+            loadScriptSequential("map4.js", () => {
+                loadMap("TotalImmigrants.svg");
+            });
+        });
+    }
+
+    if (n === 5) {
+        document.getElementById("map-explanation").textContent =
+            "This map shows how many immigrants came from another EU country.";
+
+        loadScriptSequential("dataMAP5.js", () => {
+            loadScriptSequential("map5.js", () => {
+                loadMap("ImmigrantsFromEU.svg");
+            });
+        });
+    }
+
+    if (n === 6) {
+        document.getElementById("map-explanation").textContent =
+            "This map shows the percentage of immigrants whose previous residence was outside the EU.";
+
+        loadScriptSequential("dataMAP6.js", () => {
+            loadScriptSequential("map6.js", () => {
+                loadMap("ImmigrantsFromNonEU.svg");
+            });
+        });
+    }
+}
+
+
+function loadScriptSequential(file, callback) {
+    const script = document.createElement("script");
+    script.src = file;
+    script.onload = callback;
+    document.body.appendChild(script);
+}
+
+function loadMap(file) {
+    fetch(file)
+        .then(res => res.text())
+        .then(svg => {
+            document.getElementById("map-container").innerHTML = svg;
+            addInteractions();
+        });
+}
+
+
+
+</script>
+
+<button id="source-button">Source</button>
+
+
+</body>
+
+
+</html>
